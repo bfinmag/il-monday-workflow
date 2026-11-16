@@ -39,9 +39,14 @@ button.home{background:transparent;color:var(--accent);border:1px solid var(--ac
    options: [{label, go}]  (one option = Next button, several = branch buttons), end: true for a finished step. */
 const STEPS = {
  start:{stage:"Start",title:"Where is the job right now?",text:["Pick the stage the job is at on the board."],
-  options:[{label:"Today jobs",go:"today"},{label:"Scheduled jobs",go:"scheduled"},{label:"To be scheduled",go:"tbs"},
+  options:[{label:"It's a new job",go:"newjob"},{label:"Today jobs",go:"today"},{label:"Scheduled jobs",go:"scheduled"},{label:"To be scheduled",go:"tbs"},
    {label:"Jobs quoted",go:"quoted"},{label:"Deposit required",go:"deposit"},{label:"Parts needed",go:"parts"},
    {label:"Parts ordered",go:"ordered"},{label:"Invoices to approve",go:"approve"},{label:"Current / Overdue invoices",go:"current"}]},
+
+ newjob:{stage:"New job",title:"It's a new job",text:["Change the board view to Service."],
+  options:[{label:"I changed my view to Service",go:"newjob_when"}]},
+ newjob_when:{stage:"New job",title:"When is the job?",text:["Is the job for today or another day?"],
+  options:[{label:"Today",go:"today"},{label:"Another day",go:"scheduled"}]},
 
  today:{stage:"1. Today jobs",title:"Today jobs",text:["What kind of job is it?"],
   options:[{label:"Job on account",go:"today_acc"},{label:"Job, no account",go:"today_noacc"},{label:"Site visit for quote",go:"sitevisit"}]},
