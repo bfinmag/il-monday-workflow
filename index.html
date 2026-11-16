@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Interior Locksmith - monday.com Job Workflow</title>
+<style>
+/* ===== Colours: edit these to restyle ===== */
+:root{
+  --bg:#f3f5fa; --card:#ffffff; --text:#1f2937; --muted:#6b7280;
+  --accent:#2563eb;      /* headings, branch buttons */
+  --next:#16a34a;        /* Next button */
+  --prev:#6b7280;        /* Previous button */
+  --note-bg:#fff7e6; --note-line:#f59e0b;
+  --done:#16a34a; --warn:#dc2626;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+header{background:var(--accent);color:#fff;padding:14px 16px;font-weight:700;font-size:1.1rem}
+main{max-width:640px;margin:0 auto;padding:16px}
+.card{background:var(--card);border-radius:14px;padding:18px;box-shadow:0 2px 8px #0002}
+.stage{font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+h1{font-size:1.35rem;margin:4px 0 10px;color:var(--accent)}
+p{margin:8px 0}
+.note{background:var(--note-bg);border-left:4px solid var(--note-line);padding:8px 10px;border-radius:6px;margin:10px 0}
+.q{font-weight:600;margin-top:14px}
+.btns{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+button{font-size:1rem;padding:13px 14px;border:0;border-radius:10px;cursor:pointer;text-align:left;color:#fff;background:var(--accent)}
+button.next{background:var(--next);text-align:center}
+button.prev{background:var(--prev);text-align:center}
+button.home{background:transparent;color:var(--accent);border:1px solid var(--accent);text-align:center}
+.end{color:var(--done);font-weight:700}
+.warn{color:var(--warn);font-weight:700}
+.nav{display:flex;gap:10px;margin-top:16px}.nav button{flex:1}
+</style></head>
+<body>
+<header>Interior Locksmith &middot; monday.com Job Workflow</header>
+<main><div class="card" id="card"></div></main>
+<script>
+/* ===== Workflow: edit steps here =====
+   Each step: stage, title, text (list of paragraphs), notes (asterisk notes), question,
+   options: [{label, go}]  (one option = Next button, several = branch buttons), end: true for a finished step. */
+const STEPS = {
+ start:{stage:"Start",title:"Where is the job right now?",text:["Pick the stage the job is at on the board."],
+  options:[{label:"Today jobs",go:"today"},{label:"Scheduled jobs",go:"scheduled"},{label:"To be scheduled",go:"tbs"},
+   {label:"Jobs quoted",go:"quoted"},{label:"Deposit required",go:"deposit"},{label:"Parts needed",go:"parts"},
+   {label:"Parts ordered",go:"ordered"},{label:"Invoices to approve",go:"approve"},{label:"Current / Overdue invoices",go:"current"}]},
+
+ today:{stage:"1. Today jobs",title:"Today jobs",text:["What kind of job is it?"],
+  options:[{label:"Job on account",go:"today_acc"},{label:"Job, no account",go:"today_noacc"},{label:"Site visit for quote",go:"sitevisit"}]},
+ today_acc:{stage:"1. Today jobs",title:"Job on account",text:["Do the job and create the invoice to be charged to the customer's account.","Attach the photos and the signed work order."],
+  options:[{label:"Next",go:"approve"}]},
+ today_noacc:{stage:"1. Today jobs",title:"Job, no account",text:["Do the job and take payment on site.","Create the invoice and process the RP for the on-site payment. Attach the photos and the signed work order."],
+  options:[{label:"Next",go:"approve"}]},
+ sitevisit:{stage:"1. Today jobs",title:"Site visit for quote",text:["Do the site visit. When it's complete, prep the quote, enter the quote number, and send it to the customer."],
+  options:[{label:"Next",go:"quoted"}]},
+
+ scheduled:{stage:"2. Scheduled jobs",title:"Scheduled jobs",text:["Does the job have a date?"],
+  options:[{label:"Yes, it has a date",go:"sched_date"},{label:"No date yet",go:"sched_nodate"}]},
+ sched_date:{stage:"2. Scheduled jobs",title:"Job with a date",text:["On the morning of its date, the job moves to Today jobs automatically. No time is needed."],
+  options:[{label:"Next",go:"today"}]},
+ sched_nodate:{stage:"2. Scheduled jobs",title:"Job without a date",text:["Add a date to the job."],
+  notes:["Jobs without dates won't move to Today jobs, so they'll be missed."],
+  options:[{label:"Next (date added)",go:"sched_date"}]},
+
+ tbs:{stage:"To be scheduled",title:"To be scheduled",text:["These are jobs to be done that need scheduling. Service books a date and moves them to Scheduled jobs."],
+  notes:["This is not a holding area."],options:[{label:"Next",go:"scheduled"}]},
+
+ parts:{stage:"3. Parts needed",title:"Parts needed",text:["When a job is marked parts needed, parts is automatically notified to order the parts.","Is the job confirmed or authorized?"],
+  options:[{label:"Job confirmed",go:"ordered"},{label:"Job not confirmed",go:"parts_no"}]},
+ parts_no:{stage:"3. Parts needed",title:"Job not confirmed",text:["Don't mark parts needed. Get the job confirmed or authorized first."],
+  notes:["If the job isn't confirmed or authorized, it shouldn't be here and must not be marked parts needed."],
+  options:[{label:"Job is now confirmed",go:"parts"}]},
+
+ ordered:{stage:"4. Parts ordered",title:"Parts ordered",text:["Parts are ordered from a supplier, requested from a service company, or sent or brought by a third party.","Have the parts arrived?"],
+  options:[{label:"Partially arrived",go:"ord_partial"},{label:"Arrived, needs prep",go:"ord_prep"},{label:"Arrived, ready for job",go:"ord_ready"}]},
+ ord_partial:{stage:"4. Parts ordered",title:"Partially arrived",text:["The job stays in Parts ordered until the rest of the parts arrive."],
+  options:[{label:"Rest of the parts arrived",go:"ordered"}]},
+ ord_prep:{stage:"4. Parts ordered",title:"Prep parts",text:["Prep the arrived parts (cylinders, keys, pinning). The To be prepped view lists them job by job so any free tech can pick one up."],
+  options:[{label:"Next (prep done)",go:"ord_ready"}]},
+ ord_ready:{stage:"4. Parts ordered",title:"Parts ready for job",text:["Marking parts ready for job notifies service to schedule it, and the job moves to To be scheduled."],
+  options:[{label:"Next",go:"tbs"}]},
+
+ deposit:{stage:"5. Deposit required",title:"Deposit required",text:["Approved quotes that need a deposit land here. Admin is automatically notified to send the deposit request to the customer and mark the quote status as deposit requested."],
+  options:[{label:"Next",go:"dep_req"}]},
+ dep_req:{stage:"5. Deposit required",title:"Deposit requested",text:["The job waits here until the deposit money comes in."],
+  options:[{label:"Deposit received",go:"dep_rec"}]},
+ dep_rec:{stage:"5. Deposit required",title:"Deposit received",text:["Mark the quote status deposit received."],
+  notes:["The job moves to Parts needed automatically, and parts gets notified."],options:[{label:"Next",go:"parts"}]},
+
+ quoted:{stage:"6. Jobs quoted",title:"Jobs quoted",text:["The quote stays here until it's approved, denied, or due for follow-up."],
+  options:[{label:"Approved, deposit required",go:"deposit"},{label:"Approved, no deposit",go:"q_nodep"},{label:"Denied",go:"q_denied"},{label:"No answer after two weeks",go:"followup"}]},
+ q_nodep:{stage:"6. Jobs quoted",title:"Approved, no deposit",text:["Does the job need parts?"],
+  options:[{label:"Parts needed",go:"parts"},{label:"No parts needed",go:"tbs"}]},
+ q_denied:{stage:"6. Jobs quoted",title:"Quote denied",text:["The quote is archived automatically."],end:true},
+ followup:{stage:"9. Quotes to follow up",title:"Quotes to follow up",text:["Quotes move here automatically after two weeks. Touch base with the customer."],
+  options:[{label:"Next (back to Jobs quoted)",go:"quoted"}]},
+
+ approve:{stage:"7. Invoices to approve",title:"Invoices to approve",text:["Check the invoice: correct, before and after photos, and the signed work order where it applies.","Is the invoice approved?"],
+  options:[{label:"Approved",go:"inv_ok"},{label:"Not approved",go:"review"}]},
+ review:{stage:"7. Invoices to approve",title:"To be reviewed",text:["The tech is notified with the questions. Once the invoice is fixed, it goes back to Invoices to approve."],
+  options:[{label:"Next (back to Invoices to approve)",go:"approve"}]},
+ inv_ok:{stage:"7. Invoices to approve",title:"Approved invoice",text:["Confirm the RP and PST information is transferred, then send the invoice to the customer."],
+  options:[{label:"Next (invoice sent)",go:"current"}]},
+
+ current:{stage:"8. Current invoices",title:"Current invoices",text:["Sent, unpaid invoices live here.","Has it been paid?"],
+  options:[{label:"Paid",go:"paid"},{label:"Not paid (overdue)",go:"overdue"}]},
+ paid:{stage:"8. Current invoices",title:"Invoice paid",text:["Record the payment in Square and in monday."],end:true},
+ overdue:{stage:"8. Overdue",title:"Overdue",text:["Admin is notified automatically to contact the customer and make a payment arrangement. Admin changes the due date."],
+  options:[{label:"Next (arrangement made)",go:"arrange"}]},
+ arrange:{stage:"8. Payment arrangements made",title:"Payment arrangement made",text:["Did the customer pay by the new date?"],
+  options:[{label:"Invoice paid",go:"paid"},{label:"Invoice still not paid",go:"overdue"}]}
+};
+
+const hist=[]; let cur="start";
+function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
+function show(id,push){
+  if(push) hist.push(cur); cur=id; const s=STEPS[id]; let h="";
+  h+=`<div class="stage">${esc(s.stage)}</div><h1>${esc(s.title)}</h1>`;
+  (s.text||[]).forEach(t=>h+=`<p>${esc(t)}</p>`);
+  (s.notes||[]).forEach(n=>h+=`<div class="note">* ${esc(n)}</div>`);
+  if(s.end) h+=`<p class="end">&#10003; Done</p>`;
+  const o=s.options||[];
+  if(o.length){h+=`<div class="btns">`;
+    o.forEach((x,i)=>h+=`<button class="${o.length===1?'next':''}" data-go="${x.go}">${esc(o.length===1&&!x.label.startsWith('Next')?'Next: '+x.label:x.label)}</button>`);
+    h+=`</div>`;}
+  h+=`<div class="nav"><button class="prev" id="prev"${hist.length?'':' disabled style="opacity:.4"'}>&larr; Previous</button><button class="home" id="home">Start over</button></div>`;
+  const c=document.getElementById("card"); c.innerHTML=h;
+  c.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go,true));
+  document.getElementById("prev").onclick=()=>{if(hist.length) show(hist.pop(),false)};
+  document.getElementById("home").onclick=()=>{hist.length=0; show("start",false)};
+  window.scrollTo(0,0);
+}
+show("start",false);
+</script>
+</body></html>
